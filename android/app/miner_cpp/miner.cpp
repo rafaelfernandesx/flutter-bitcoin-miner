@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <chrono>
 
 // Right rotation
 #define ROTR(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
@@ -196,4 +197,51 @@ char * minerHeader(const char* headerHex, const char* targetHex)
     std::strcpy(headerHexResult, blockHeader.c_str());
 
     return headerHexResult;
+}
+
+std::string concatenateStrings(const std::string& str1, const std::string& str2) {
+    return str1 +"-"+ str2;
+}
+
+char * calculateHashPerSeconds()
+{
+    std::string blockHeaderHex ="010000004944469562ae1c2c74d9a535e00b6f3e40ffbad4f2fda3895501b582000000007a06ea98cd40ba2e3288262b28638cec5337c1456aaf5eedc8e9e5a20f062bdf8cc16649ffff001d00000000";
+    std::string blockHeader = hex2bin(blockHeaderHex);
+    std::string targetHash ="00000000ffff0000000000000000000000000000000000000000000000000000";
+    std::string blockHash = blockComputeRawHash(blockHeader);
+    uint32_t nonce = 2849094635;
+    int hashes_per_second = 0; // Contador de hashes por segundo
+
+    // Contagem inicial de tempo
+    auto start_time = std::chrono::steady_clock::now();
+
+    while (blockHash >= targetHash && nonce <= 0xffffffff) {
+        nonce++;
+        std::string nonceStr(reinterpret_cast<const char*>(&nonce), sizeof(nonce));
+        blockHeader.replace(76, 4, nonceStr);
+        blockHash = blockComputeRawHash(blockHeader);
+        hashes_per_second++; // Incrementa o contador de hashes por segundo
+    }
+
+    // Contagem final de tempo
+    auto end_time = std::chrono::steady_clock::now();
+
+    // Calcular o tempo decorrido em segundos
+    std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+
+    // Calcular o número de hashes por segundo
+    double hashes_per_second_result = hashes_per_second / elapsed_seconds.count();
+    std::string hashes_per_second_str = std::to_string(hashes_per_second_result);
+
+    blockHeader = bin2hex(blockHeader);
+    char* headerHexResult = new char[blockHeader.length() + 1];
+    std::strcpy(headerHexResult, blockHeader.c_str());
+
+    std::string concatenatedString = concatenateStrings(blockHeader, hashes_per_second_str);
+
+    // Convertendo para char* se necessário
+    char* result = new char[concatenatedString.length() + 1];
+    std::strcpy(result, concatenatedString.c_str());
+
+    return result;
 }

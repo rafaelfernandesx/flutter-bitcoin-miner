@@ -8,6 +8,9 @@ extern "C" {
 __attribute__((visibility("default")))
 char* minerHeader(const char* headerHex, const char* targetHex);
 
+__attribute__((visibility("default")))
+char * calculateHashPerSeconds();
+
 #ifdef __cplusplus
 }
 #endif

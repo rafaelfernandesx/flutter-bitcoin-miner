@@ -44,6 +44,9 @@ typedef DartCppMiner = Pointer<Utf8> Function(
   Pointer<Utf8> targetHex,
 );
 
+typedef CalculateHashNative = Pointer<Utf8> Function();
+typedef CalculateHashDart = Pointer<Utf8> Function();
+
 class _MyHomePageState extends State<MyHomePage> {
   bool mining = false;
   String headerHexMined = '';
@@ -83,6 +86,21 @@ class _MyHomePageState extends State<MyHomePage> {
 
     setState(() {
       headerHexMined = result1.toDartString();
+      mining = false;
+    });
+  }
+
+  void calcularHashsPorSegundo() {
+    setState(() {
+      mining = !mining;
+    });
+    nativeAddLib ??= Platform.isAndroid ? DynamicLibrary.open('libminer_lib.so') : DynamicLibrary.process();
+    final calculateHashPerSeconds = nativeAddLib?.lookupFunction<CalculateHashNative, CalculateHashDart>('calculateHashPerSeconds');
+    final result1 = calculateHashPerSeconds!();
+
+    setState(() {
+      headerHexMined = result1.toDartString();
+      mining = false;
     });
   }
 
@@ -120,6 +138,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: startMiner,
               child: mining ? const Text('Stop Miner') : const Text('Start Miner'),
+            ),
+            ElevatedButton(
+              onPressed: calcularHashsPorSegundo,
+              child: mining ? const Text('Calculando') : const Text('Calcular hashs por segundo'),
             ),
             const SizedBox(height: 40),
           ],
