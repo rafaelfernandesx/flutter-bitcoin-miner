@@ -8,67 +8,32 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 class BitcoinMiner {
-  final BitcoinBlockTemplate rpcBlockTemplate;
-  final BitcoinBlockSubmission rpcBlockSubmission;
+  final BitcoinRpcClient bitcoinRpcClient;
 
-  BitcoinMiner(this.rpcBlockTemplate, this.rpcBlockSubmission);
+  BitcoinMiner(this.bitcoinRpcClient);
 
-  Future<Map<String, dynamic>>? mineBlock(List<int> coinbaseMessage, String address, int extranonceStart, {int? timeout, num debugnonceStart = 0}) async {
+  Map<String, String>? getBlockHeaderHex(BlockTemplate blockTemplate, List<int> coinbaseMessage, String address) {
     String coinbaseHex = bytesToHex(coinbaseMessage);
-    Map<String, dynamic> blockTemplate = await rpcBlockTemplate.getBlockTemplate();
     Map<String, dynamic> coinbaseTx = {};
-    blockTemplate['transactions'].insert(0, coinbaseTx);
-    blockTemplate['nonce'] = 0;
-    String targetHash = blockBits2Target(blockTemplate['bits']);
-    int timeStart = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    int hashRateCount = 0;
-    int nonce = extranonceStart;
-    coinbaseTx = createCoinbaseTransaction(coinbaseHex, address, nonce, blockTemplate['coinbasevalue'], blockTemplate['height']);
-    blockTemplate['transactions'][0] = coinbaseTx;
-    String merkleRoot = calculateMerkleRoot(blockTemplate['transactions']);
-    blockTemplate['merkleroot'] = merkleRoot;
+    blockTemplate.transactions.insert(0, coinbaseTx);
+    blockTemplate.nonce = 0;
+    String targetHash = blockBits2Target(blockTemplate.bits);
+    int nonce = 0;
+    coinbaseTx = createCoinbaseTransaction(coinbaseHex, address, nonce, blockTemplate.coinbasevalue, blockTemplate.height);
+    blockTemplate.transactions[0] = coinbaseTx;
+    String merkleRoot = calculateMerkleRoot(blockTemplate.transactions);
+    blockTemplate.merkleroot = merkleRoot;
     List<int> blockHeader = blockMakeHeader(blockTemplate);
-    while (true) {
-      blockHeader = blockHeader.sublist(0, 76);
-      blockHeader = <int>[...blockHeader, ...pack('V', nonce)];
-      List<int> blockHash = blockComputeRawHash(Uint8List.fromList(blockHeader));
-      hashRateCount++;
-      BigInt currentHash = hashToGmp(blockHash);
-      BigInt targetHashGmp = hashToGmp(hexToBytes(targetHash));
-      if (currentHash <= targetHashGmp) {
-        // Save block template and info to files
-        writeFile('minedblock${blockTemplate['height']}.json', jsonEncode(blockTemplate));
-        blockTemplate['nonce'] = nonce;
-        blockTemplate['hash'] = bytesToHex(blockHash);
-        String blockSub = buildBlock(blockTemplate);
-        dynamic result = await rpcBlockSubmission.submitBlock(blockSub);
-        return result;
-      }
-      nonce++;
-      if (debugnonceStart > 0 && nonce >= extranonceStart + debugnonceStart) {
-        break;
-      }
-      if (timeout != null && (DateTime.now().millisecondsSinceEpoch ~/ 1000 - timeStart) >= timeout) {
-        // print('Total hash: $hashRateCount in $timeout seconds');
-        break;
-      }
-    }
-
+    String headerHex = bytesToHex(blockHeader);
     return {
-      'hashRateCount': hashRateCount,
-      'nonce': nonce,
-      'height': blockTemplate['height'],
+      'headerHex': headerHex,
+      'targetHex': targetHash,
     };
   }
 
   void writeFile(String fileName, String content) {
     File file = File(fileName);
     file.writeAsStringSync(content);
-  }
-
-  BigInt hashToGmp(List<int> hash) {
-    String hashHex = bytesToHex(hash);
-    return BigInt.parse(hashHex, radix: 16);
   }
 
   List<int> pack(String format, dynamic value) {
@@ -112,30 +77,18 @@ class BitcoinMiner {
     return base256;
   }
 
-  Uint8List blockMakeHeader(Map<String, dynamic> block) {
+  Uint8List blockMakeHeader(BlockTemplate blockTemplate) {
     String header = "";
-    header += listToString(pack("V", block['version']));
-    String previousBlockHash = listToString(hexToBytes(block['previousblockhash']));
+    header += listToString(pack("V", blockTemplate.version));
+    String previousBlockHash = listToString(hexToBytes(blockTemplate.previousblockhash));
     header += previousBlockHash.split('').reversed.join();
-    String merkleRootHash = listToString(hexToBytes(block['merkleroot']));
+    String merkleRootHash = listToString(hexToBytes(blockTemplate.merkleroot!));
     header += merkleRootHash.split('').reversed.join();
-    header += listToString(pack("V", block['curtime']));
-    String targetBits = listToString(hexToBytes(block['bits']));
+    header += listToString(pack("V", blockTemplate.curtime));
+    String targetBits = listToString(hexToBytes(blockTemplate.bits));
     header += targetBits.split('').reversed.join();
-    header += listToString(pack("V", block['nonce']));
+    header += listToString(pack("V", blockTemplate.nonce));
     return Uint8List.fromList(header.codeUnits);
-  }
-
-  Uint8List blockComputeRawHash(Uint8List header) {
-    List<int> hash1 = sha256.convert(header).bytes;
-    Uint8List hash2 = Uint8List.fromList(sha256.convert(hash1).bytes.reversed.toList());
-    return hash2;
-  }
-
-  String intToHex(int value, int width) {
-    List<int> bytes = [width];
-    String hex = bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
-    return hex;
   }
 
   String txEncodeCoinbaseHeight(int height) {
@@ -238,11 +191,11 @@ class BitcoinMiner {
     return bytesToHex(target);
   }
 
-  String buildBlock(Map<String, dynamic> block) {
+  String buildBlock(BlockTemplate blockTemplate) {
     String submission = '';
-    submission += bytesToHex(blockMakeHeader(block));
-    submission += int2varinthex(block['transactions'].length);
-    for (var tx in block['transactions']) {
+    submission += bytesToHex(blockMakeHeader(blockTemplate));
+    submission += int2varinthex(blockTemplate.transactions.length);
+    for (var tx in blockTemplate.transactions) {
       submission += tx['data'];
     }
     return submission;
@@ -270,16 +223,6 @@ class BitcoinMiner {
     return result;
   }
 
-  String bin2hex(String input) {
-    List<int> bytes = [];
-    for (int i = 0; i < input.length; i += 2) {
-      String hex = input.substring(i, i + 2);
-      bytes.add(int.parse(hex, radix: 16));
-    }
-    String hexString = bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
-    return hexString;
-  }
-
   String int2varinthex(int value) {
     if (value < 0xfd) {
       return int2lehex(value, 1);
@@ -291,71 +234,16 @@ class BitcoinMiner {
       return "ff${int2lehex(value, 8)}";
     }
   }
-
-  int bitLength(int value) {
-    String bin = BigInt.from(value).toRadixString(2);
-    return bin.length;
-  }
-
-  int reverseBytesInWord(int word) {
-    return (((word << 24) & 0xFF000000) | ((word << 8) & 0x00FF0000) | ((word >> 8) & 0x0000FF00) | ((word >> 24) & 0x000000FF));
-  }
-
-  Uint32List hexToReversedList(String hex, [bool reverseWords = true]) {
-    Uint32List arr = Uint32List(hex.length ~/ 8);
-    int word = 0;
-    int index = 0;
-    for (var i = hex.length; i > 0; i -= 8) {
-      String test = hex.substring((i - 8), i);
-      word = int.parse(hex.substring((i - 8), i), radix: 16);
-      arr[index++] = reverseWords ? reverseBytesInWord(word) : word;
-    }
-    return arr;
-  }
 }
 
-abstract class RpcClientInterface {
-  dynamic rpc(String method, List<dynamic> params);
-}
-
-class BitcoinBlockSubmission {
-  final RpcClientInterface rpcClient;
-
-  BitcoinBlockSubmission(this.rpcClient);
-
-  dynamic submitBlock(dynamic blockSubmission) {
-    return rpcClient.rpc('submitblock', [blockSubmission]);
-  }
-}
-
-class BitcoinBlockTemplate {
-  final RpcClientInterface rpcClient;
-
-  BitcoinBlockTemplate(this.rpcClient);
-
-  Future<dynamic> getBlockTemplate() async {
-    try {
-      final result = await rpcClient.rpc('getblocktemplate', [
-        {
-          "rules": ["segwit"]
-        }
-      ]);
-      return result;
-    } catch (e) {
-      return [];
-    }
-  }
-}
-
-class BitcoinRpcClient implements RpcClientInterface {
+class BitcoinRpcClient {
   final String rpcUrl;
   final String rpcUser;
   final String rpcPass;
 
   BitcoinRpcClient(this.rpcUrl, this.rpcUser, this.rpcPass);
 
-  @override
-  dynamic rpc(String method, [dynamic params]) async {
+  Future<Map<String, dynamic>> _rpc(String method, [dynamic params]) async {
     final rpcId = math.Random().nextInt(2147483647);
     final data = jsonEncode({
       'id': rpcId,
@@ -368,7 +256,7 @@ class BitcoinRpcClient implements RpcClientInterface {
     try {
       final response = await http.post(
         // Uri.parse(rpcUrl),
-        Uri.parse('https://btc.getblock.io/d2f0f5e3-43e5-4919-8aec-dac1176b69a8/mainnet/'),
+        Uri.parse('https://go.getblock.io/6edfe3170d224f748ae86b14e4df45da'),
         headers: headers,
         body: data,
         encoding: utf8,
@@ -386,5 +274,139 @@ class BitcoinRpcClient implements RpcClientInterface {
       inspect(e);
       rethrow;
     }
+  }
+
+  Future<BlockTemplate?> getBlockTemplate() async {
+    try {
+      final result = await _rpc('getblocktemplate', [
+        {
+          "rules": ["segwit"]
+        }
+      ]);
+      final blockTemplate = BlockTemplate.fromJson(result);
+      return blockTemplate;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<dynamic> submitBlock(String blockSubmission) {
+    return _rpc('submitblock', [blockSubmission]);
+  }
+}
+
+class BlockTemplate {
+  final List<String> capabilities;
+  final int version;
+  final List<String> rules;
+  final dynamic vbavailable;
+  final int vbrequired;
+  final String previousblockhash;
+  final List<dynamic> transactions;
+  final dynamic coinbaseaux;
+  final int coinbasevalue;
+  final String longpollid;
+  final String target;
+  final int mintime;
+  final List<String> mutable;
+  final String noncerange;
+  final int sigoplimit;
+  final int sizelimit;
+  final int weightlimit;
+  final int curtime;
+  final String bits;
+  final int height;
+  final String defaultWitnessCommitment;
+  //added after getting the block template
+  int? nonce;
+  String? merkleroot;
+  String? blockHash;
+
+  BlockTemplate({
+    required this.capabilities,
+    required this.version,
+    required this.rules,
+    required this.vbavailable,
+    required this.vbrequired,
+    required this.previousblockhash,
+    required this.transactions,
+    required this.coinbaseaux,
+    required this.coinbasevalue,
+    required this.longpollid,
+    required this.target,
+    required this.mintime,
+    required this.mutable,
+    required this.noncerange,
+    required this.sigoplimit,
+    required this.sizelimit,
+    required this.weightlimit,
+    required this.curtime,
+    required this.bits,
+    required this.height,
+    required this.defaultWitnessCommitment,
+    this.nonce = 0,
+    this.merkleroot,
+    this.blockHash,
+  });
+
+  factory BlockTemplate.fromJson(Map<String, dynamic> json) {
+    return BlockTemplate(
+      capabilities: List<String>.from(json['capabilities']),
+      version: json['version'],
+      rules: List<String>.from(json['rules']),
+      vbavailable: json['vbavailable'],
+      vbrequired: json['vbrequired'],
+      previousblockhash: json['previousblockhash'],
+      transactions: json['transactions'],
+      coinbaseaux: json['coinbaseaux'],
+      coinbasevalue: json['coinbasevalue'],
+      longpollid: json['longpollid'],
+      target: json['target'],
+      mintime: json['mintime'],
+      mutable: List<String>.from(json['mutable']),
+      noncerange: json['noncerange'],
+      sigoplimit: json['sigoplimit'],
+      sizelimit: json['sizelimit'],
+      weightlimit: json['weightlimit'],
+      curtime: json['curtime'],
+      bits: json['bits'],
+      height: json['height'],
+      defaultWitnessCommitment: json['default_witness_commitment'],
+      nonce: json['nonce'] ?? 0,
+      merkleroot: json['merkleroot'],
+      blockHash: json['hash'],
+    );
+  }
+}
+
+class Transaction {
+  final String data;
+  final String txid;
+  final String hash;
+  final List<int> depends;
+  final int fee;
+  final int sigops;
+  final int weight;
+
+  Transaction({
+    required this.data,
+    required this.txid,
+    required this.hash,
+    required this.depends,
+    required this.fee,
+    required this.sigops,
+    required this.weight,
+  });
+
+  factory Transaction.fromJson(Map<String, dynamic> json) {
+    return Transaction(
+      data: json['data'],
+      txid: json['txid'],
+      hash: json['hash'],
+      depends: List<int>.from(json['depends']),
+      fee: json['fee'],
+      sigops: json['sigops'],
+      weight: json['weight'],
+    );
   }
 }

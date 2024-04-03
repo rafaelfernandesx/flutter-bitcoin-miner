@@ -1,5 +1,8 @@
 import 'dart:developer';
+import 'dart:ffi';
+import 'dart:io';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 
 import 'miner.dart';
@@ -32,41 +35,55 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+typedef CppMiner = Pointer<Utf8> Function(
+  Pointer<Utf8> headerHex,
+  Pointer<Utf8> targetHex,
+);
+typedef DartCppMiner = Pointer<Utf8> Function(
+  Pointer<Utf8> headerHex,
+  Pointer<Utf8> targetHex,
+);
+
 class _MyHomePageState extends State<MyHomePage> {
   bool mining = false;
+  String headerHexMined = '';
+  BlockTemplate? blockTemplate;
 
   List<String> logger = [];
-
+  DynamicLibrary? nativeAddLib;
   void startMiner() async {
     setState(() {
       mining = !mining;
     });
-    String rpcUrl = 'http://localhost:18443';
-    String rpcUser = 'user';
-    String rpcPass = 'pass';
-    final blockTemplate = BitcoinBlockTemplate(BitcoinRpcClient(rpcUrl, rpcUser, rpcPass));
-    final blockSubmission = BitcoinBlockSubmission(BitcoinRpcClient(rpcUrl, rpcUser, rpcPass));
-    final miner = BitcoinMiner(blockTemplate, blockSubmission);
+    nativeAddLib ??= Platform.isAndroid ? DynamicLibrary.open('libminer_lib.so') : DynamicLibrary.process();
+    final minerHeader = nativeAddLib?.lookupFunction<CppMiner, DartCppMiner>('minerHeader');
 
+    final rpcClient = BitcoinRpcClient('rpcUrl', 'rpcUser', 'rpcPass');
+    final miner = BitcoinMiner(rpcClient);
+    blockTemplate = await rpcClient.getBlockTemplate();
+    if (blockTemplate == null) {
+      inspect('Failed to get block template');
+      setState(() {
+        mining = false;
+      });
+      return;
+    }
     const coinbaseMessage = 'Mined by RafaelFernandes';
     const address = '1rafaeLAdmgQhS2i4BR1tRst666qyr9ut';
-    const extranonceStart = 0;
-    const timeout = 10; // time in seconds to get a new blcktemplate
-
-    bool mined = false;
-
-    while (mined == false && mining == true) {
-      final result = await miner.mineBlock(coinbaseMessage.codeUnits, address, extranonceStart, timeout: timeout);
-      if (result == null || result['nonce'] == null) {
-        inspect(result);
-        mined = true;
-        break;
-      } else {
-        setState(() {
-          logger.add('Total hashs: ${result['hashRateCount']} in $timeout seconds, height: ${result['height']}');
-        });
-      }
+    final result = miner.getBlockHeaderHex(blockTemplate!, coinbaseMessage.codeUnits, address);
+    inspect(result);
+    if (result == null || minerHeader == null) {
+      inspect('Failed to get block header');
+      setState(() {
+        mining = false;
+      });
+      return;
     }
+    final result1 = minerHeader(result['headerHex']!.toNativeUtf8(), result['targetHex']!.toNativeUtf8());
+
+    setState(() {
+      headerHexMined = result1.toDartString();
+    });
   }
 
   @override
@@ -80,14 +97,23 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Expanded(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: logger.length,
-                itemBuilder: (context, index) {
-                  return Text(logger[index]);
-                },
+            //crie uma decoracao para TextField abaixo
+
+            TextField(
+              maxLines: 10,
+              minLines: 5,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Header Hex',
+                border: const OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey[200],
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Colors.blue),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
+              controller: TextEditingController(text: headerHexMined),
             ),
             Text(
               'Is mining: $mining',
@@ -96,14 +122,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: startMiner,
               child: mining ? const Text('Stop Miner') : const Text('Start Miner'),
-            )
+            ),
+            const SizedBox(height: 40),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
