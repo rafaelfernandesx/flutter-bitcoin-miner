@@ -97,8 +97,6 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            //crie uma decoracao para TextField abaixo
-
             TextField(
               maxLines: 10,
               minLines: 5,
