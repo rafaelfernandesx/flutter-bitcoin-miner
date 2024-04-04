@@ -209,7 +209,7 @@ char * calculateHashPerSeconds()
     std::string blockHeader = hex2bin(blockHeaderHex);
     std::string targetHash ="00000000ffff0000000000000000000000000000000000000000000000000000";
     std::string blockHash = blockComputeRawHash(blockHeader);
-    uint32_t nonce = 2849094635;
+    uint32_t nonce = 2849894635;
     int hashes_per_second = 0; // Contador de hashes por segundo
 
     // Contagem inicial de tempo

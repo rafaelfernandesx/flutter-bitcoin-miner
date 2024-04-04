@@ -1,4 +1,4 @@
-# miner
+# flutter_sha256_miner
 
 A new Flutter project.
 

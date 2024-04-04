@@ -1,0 +1,38 @@
+{
+  "buildFiles": [
+    "C:\\Users\\rafam\\Documentos\\PROJETOS\\FLUTTER\\flutter_sha256_miner\\android\\app\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\rafam\\AppData\\Local\\Android\\sdk\\cmake\\3.18.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\rafam\\Documentos\\PROJETOS\\FLUTTER\\flutter_sha256_miner\\android\\app\\.cxx\\Debug\\3805j496\\arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\rafam\\AppData\\Local\\Android\\sdk\\cmake\\3.18.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\rafam\\Documentos\\PROJETOS\\FLUTTER\\flutter_sha256_miner\\android\\app\\.cxx\\Debug\\3805j496\\arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "miner_lib::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "miner_lib",
+      "output": "C:\\Users\\rafam\\Documentos\\PROJETOS\\FLUTTER\\flutter_sha256_miner\\build\\app\\intermediates\\cxx\\Debug\\3805j496\\obj\\arm64-v8a\\libminer_lib.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "C:\\Users\\rafam\\AppData\\Local\\Android\\Sdk\\ndk\\23.1.7779620\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang.exe",
+      "cppCompilerExecutable": "C:\\Users\\rafam\\AppData\\Local\\Android\\Sdk\\ndk\\23.1.7779620\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

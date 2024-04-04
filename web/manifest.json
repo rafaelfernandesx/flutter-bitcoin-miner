@@ -1,6 +1,6 @@
 {
-    "name": "miner",
-    "short_name": "miner",
+    "name": "flutter_sha256_miner",
+    "short_name": "flutter_sha256_miner",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
