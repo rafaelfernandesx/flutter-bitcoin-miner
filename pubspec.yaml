@@ -38,6 +38,7 @@ dependencies:
   ffi: ^2.1.2
   crypto: ^3.0.3
   http: ^1.2.1
+  hex: ^0.2.0
 
 dev_dependencies:
   flutter_test:

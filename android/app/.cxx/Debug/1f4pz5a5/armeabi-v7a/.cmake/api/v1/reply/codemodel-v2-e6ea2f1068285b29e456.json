@@ -1,0 +1,59 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.4.1"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "Project",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "miner_lib::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-miner_lib-Debug-e1d0a1920a3d5b46a289.json",
+					"name" : "miner_lib",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter-bitcoin-miner/android/app/.cxx/Debug/1f4pz5a5/armeabi-v7a",
+		"source" : "C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter-bitcoin-miner/android/app"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 1
+	}
+}

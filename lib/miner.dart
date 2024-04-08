@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:hex/hex.dart';
 import 'package:http/http.dart' as http;
 
 class BitcoinMiner {
@@ -12,23 +13,37 @@ class BitcoinMiner {
 
   BitcoinMiner(this.bitcoinRpcClient);
 
-  Map<String, String>? getBlockHeaderHex(BlockTemplate blockTemplate, List<int> coinbaseMessage, String address) {
+  Map<String, String>? getBlockHeaderHex(
+      BlockTemplate blockTemplate, List<int> coinbaseMessage, String address) {
     String coinbaseHex = bytesToHex(coinbaseMessage);
     Map<String, dynamic> coinbaseTx = {};
     blockTemplate.transactions.insert(0, coinbaseTx);
     blockTemplate.nonce = 0;
-    String targetHash = blockBits2Target(blockTemplate.bits);
+    // String targetHash = blockBits2Target(blockTemplate.bits);
     int nonce = 0;
-    coinbaseTx = createCoinbaseTransaction(coinbaseHex, address, nonce, blockTemplate.coinbasevalue, blockTemplate.height);
+    coinbaseTx = createCoinbaseTransaction(coinbaseHex, address, nonce,
+        blockTemplate.coinbasevalue, blockTemplate.height);
     blockTemplate.transactions[0] = coinbaseTx;
     String merkleRoot = calculateMerkleRoot(blockTemplate.transactions);
     blockTemplate.merkleroot = merkleRoot;
     List<int> blockHeader = blockMakeHeader(blockTemplate);
     String headerHex = bytesToHex(blockHeader);
+
     return {
       'headerHex': headerHex,
-      'targetHex': targetHash,
+      'targetHex': blockTemplate.target,
     };
+  }
+
+  String blockComputeRawHash(String headerHex) {
+    final hash = String.fromCharCodes(
+      sha256
+          .convert(sha256.convert(hexToBytes(headerHex)).bytes)
+          .bytes
+          .reversed,
+    );
+    final hash2 = strToHex(hash);
+    return hash2;
   }
 
   void writeFile(String fileName, String content) {
@@ -51,18 +66,23 @@ class BitcoinMiner {
       value >>= 8;
     }
     bytes = bytes.reversed.toList();
-    String hex = bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).toList().reversed.join();
+    String hex = bytes
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .toList()
+        .reversed
+        .join();
     return hex;
   }
 
   String bitcoinaddress2hash160(String address) {
-    String decoded = base58Decode(address);
-    String hash160 = decoded.substring(1, 21);
-    return hash160.codeUnits.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    String decoded = HEX.encode(base58Decode(address).codeUnits);
+    String hash160 = decoded.substring(0, 40);
+    return hash160;
   }
 
   String base58Decode(String base58) {
-    String alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    String alphabet =
+        '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     BigInt base = BigInt.zero;
     for (int i = 0; i < base58.length; i++) {
       base = base * BigInt.from(58);
@@ -80,7 +100,8 @@ class BitcoinMiner {
   Uint8List blockMakeHeader(BlockTemplate blockTemplate) {
     String header = "";
     header += listToString(pack("V", blockTemplate.version));
-    String previousBlockHash = listToString(hexToBytes(blockTemplate.previousblockhash));
+    String previousBlockHash =
+        listToString(hexToBytes(blockTemplate.previousblockhash));
     header += previousBlockHash.split('').reversed.join();
     String merkleRootHash = listToString(hexToBytes(blockTemplate.merkleroot!));
     header += merkleRootHash.split('').reversed.join();
@@ -96,7 +117,8 @@ class BitcoinMiner {
     int width = ((heightLength + 7) / 8).floor();
 
     List<int> widthBytes = [width];
-    String widthHex = widthBytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    String widthHex =
+        widthBytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
 
     String heightHex = int2lehex(height, width);
 
@@ -109,8 +131,10 @@ class BitcoinMiner {
     return charCodes.join('');
   }
 
-  String txMakeCoinbase(String coinbaseScript, String address, int value, int height) {
-    String coinbaseScriptEncoded = txEncodeCoinbaseHeight(height) + coinbaseScript;
+  String txMakeCoinbase(
+      String coinbaseScript, String address, int value, int height) {
+    String coinbaseScriptEncoded =
+        txEncodeCoinbaseHeight(height) + coinbaseScript;
 
     String pubkeyScript = "76a914${bitcoinaddress2hash160(address)}88ac";
 
@@ -132,9 +156,11 @@ class BitcoinMiner {
     return tx;
   }
 
-  Map<String, dynamic> createCoinbaseTransaction(String message, String address, int nonce, int coinbaseValue, int height) {
+  Map<String, dynamic> createCoinbaseTransaction(String message, String address,
+      int nonce, int coinbaseValue, int height) {
     String coinbaseScript = buildCoinbaseScript(message, nonce);
-    String txData = txMakeCoinbase(coinbaseScript, address, coinbaseValue, height);
+    String txData =
+        txMakeCoinbase(coinbaseScript, address, coinbaseValue, height);
 
     Map<String, dynamic> coinbaseTx = {
       'data': txData,
@@ -161,25 +187,42 @@ class BitcoinMiner {
     return hash;
   }
 
-  String calculateMerkleRoot(List<dynamic> transactions) {
-    if (transactions.length == 1) {
-      return transactions[0]['hash'];
+  String calculateMerkleRoot(List<dynamic> txHashes) {
+    // Convert list of ASCII hex transaction hashes into bytes
+    List<String> ntxHashes = [];
+    for (var txHash in txHashes) {
+      ntxHashes.add(
+        String.fromCharCodes(hexToBytes(txHash['hash']!).reversed.toList()),
+      );
     }
-    List<String> merkle = [];
-    for (var transaction in transactions) {
-      merkle.add(transaction['hash']);
-    }
-    while (merkle.length > 1) {
-      List<String> level = [];
-      for (int i = 0; i < merkle.length; i += 2) {
-        String a = merkle[i];
-        String b = (i + 1 < merkle.length) ? merkle[i + 1] : merkle[i];
-        List<int> hash = sha256.convert(hexToBytes(a + b)).bytes;
-        level.add(bytesToHex(sha256.convert(hash).bytes).split('').reversed.join());
+
+    List<String> txHashesList = ntxHashes;
+
+    // Iteratively compute the merkle root hash
+    while (txHashesList.length > 1) {
+      // Duplicate last hash if the list is odd
+      if (txHashesList.length % 2 != 0) {
+        txHashesList.add(txHashesList.last);
       }
-      merkle = level;
+
+      List<String> txHashesNew = [];
+      int count = (txHashesList.length / 2).floor();
+      for (int i = 0; i < count; i++) {
+        // Concatenate the next two
+        String concat = txHashesList.removeAt(0) + txHashesList.removeAt(0);
+        // Hash them
+        String concatHash = String.fromCharCodes(
+          sha256.convert(sha256.convert(concat.codeUnits).bytes).bytes,
+        );
+        // Add them to our working list
+        txHashesNew.add(concatHash);
+      }
+      txHashesList = txHashesNew;
     }
-    return merkle[0];
+
+    // Format the root in big endian ascii hex
+    String txHash = HEX.encode(txHashesList[0].codeUnits.reversed.toList());
+    return txHash;
   }
 
   String blockBits2Target(String bits) {
@@ -215,6 +258,17 @@ class BitcoinMiner {
     for (int byte in bytes) {
       hex += byte.toRadixString(16).padLeft(2, '0');
     }
+    return hex;
+  }
+
+  String strToHex(String str) {
+    String hex = HEX.encode(str.codeUnits);
+    return hex;
+  }
+
+  String listToHex(List<int> list) {
+    final str = String.fromCharCodes(list);
+    String hex = utf8.encode(str).map((e) => e.toRadixString(16)).join();
     return hex;
   }
 
@@ -264,12 +318,13 @@ class BitcoinRpcClient {
       final jsonResponse = jsonDecode(response.body);
 
       if (jsonResponse['id'] != rpcId) {
-        throw Exception('Invalid response id: got ${jsonResponse['id']}, expected $rpcId');
+        throw Exception(
+            'Invalid response id: got ${jsonResponse['id']}, expected $rpcId');
       } else if (jsonResponse['error'] != null) {
         throw Exception('RPC error: ${jsonResponse['error']}');
       }
 
-      return jsonResponse['result'];
+      return jsonResponse;
     } catch (e) {
       inspect(e);
       rethrow;
@@ -283,7 +338,7 @@ class BitcoinRpcClient {
           "rules": ["segwit"]
         }
       ]);
-      final blockTemplate = BlockTemplate.fromJson(result);
+      final blockTemplate = BlockTemplate.fromJson(result['result']);
       return blockTemplate;
     } catch (e) {
       return null;

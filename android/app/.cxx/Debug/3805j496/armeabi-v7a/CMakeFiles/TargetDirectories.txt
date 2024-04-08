@@ -1,3 +1,0 @@
-C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter_sha256_miner/android/app/.cxx/Debug/3805j496/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter_sha256_miner/android/app/.cxx/Debug/3805j496/armeabi-v7a/CMakeFiles/miner_lib.dir
-C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter_sha256_miner/android/app/.cxx/Debug/3805j496/armeabi-v7a/CMakeFiles/rebuild_cache.dir

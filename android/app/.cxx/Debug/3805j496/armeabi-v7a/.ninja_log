@@ -1,7 +1,0 @@
-# ninja log v5
-0	731	733892797	CMakeFiles/miner_lib.dir/miner_cpp/miner.cpp.o	b687a9bd503f72a1
-733	837	733892797	C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter_sha256_miner/build/app/intermediates/cxx/Debug/3805j496/obj/armeabi-v7a/libminer_lib.so	be85210d0aa33510
-2	717	733895814	CMakeFiles/miner_lib.dir/miner_cpp/miner.cpp.o	b687a9bd503f72a1
-717	873	733895814	C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter_sha256_miner/build/app/intermediates/cxx/Debug/3805j496/obj/armeabi-v7a/libminer_lib.so	be85210d0aa33510
-2	704	733896140	CMakeFiles/miner_lib.dir/miner_cpp/miner.cpp.o	b687a9bd503f72a1
-704	806	733896140	C:/Users/rafam/Documentos/PROJETOS/FLUTTER/flutter_sha256_miner/build/app/intermediates/cxx/Debug/3805j496/obj/armeabi-v7a/libminer_lib.so	be85210d0aa33510

@@ -193,8 +193,14 @@ char * minerHeader(const char* headerHex, const char* targetHex)
         blockHash = blockComputeRawHash(blockHeader);
     }
     blockHeader = bin2hex(blockHeader);
-    char* headerHexResult = new char[blockHeader.length() + 1];
-    std::strcpy(headerHexResult, blockHeader.c_str());
+    // Combine nonce e headerHexString em uma única string com um hífen
+    std::string result = std::to_string(nonce) + "-" + blockHash + "-" + blockHeader;
+
+    // Aloca memória para o resultado
+    char* headerHexResult = new char[result.length() + 1];
+
+    // Copia a string resultante para o ponteiro de char
+    std::strcpy(headerHexResult, result.c_str());
 
     return headerHexResult;
 }
@@ -240,8 +246,8 @@ char * calculateHashPerSeconds()
     std::string concatenatedString = concatenateStrings(blockHeader, hashes_per_second_str);
 
     // Convertendo para char* se necessário
-    char* result = new char[concatenatedString.length() + 1];
-    std::strcpy(result, concatenatedString.c_str());
+    char* result = new char[hashes_per_second_str.length() + 1];
+    std::strcpy(result, hashes_per_second_str.c_str());
 
     return result;
 }

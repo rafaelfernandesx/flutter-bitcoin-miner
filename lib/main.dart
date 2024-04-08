@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Flutter Miner'),
     );
   }
 }
@@ -56,7 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
   DynamicLibrary? nativeAddLib;
   void startMiner() async {
     setState(() {
-      mining = !mining;
+      mining = true;
     });
     nativeAddLib ??= Platform.isAndroid
         ? DynamicLibrary.open('libminer_lib.so')
@@ -64,9 +64,11 @@ class _MyHomePageState extends State<MyHomePage> {
     final minerHeader =
         nativeAddLib?.lookupFunction<CppMiner, DartCppMiner>('minerHeader');
 
-    final rpcClient = BitcoinRpcClient('rpcUrl', 'rpcUser', 'rpcPass');
+    final rpcClient = BitcoinRpcClient('address', 'user', 'pass');
     final miner = BitcoinMiner(rpcClient);
+
     blockTemplate = await rpcClient.getBlockTemplate();
+
     if (blockTemplate == null) {
       inspect('Failed to get block template');
       setState(() {
@@ -76,23 +78,39 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     const coinbaseMessage = 'Mined by RafaelFernandes';
     const address = '1rafaeLAdmgQhS2i4BR1tRst666qyr9ut';
-    final result = miner.getBlockHeaderHex(
+    final headerHexAndTargetHex = miner.getBlockHeaderHex(
         blockTemplate!, coinbaseMessage.codeUnits, address);
-    inspect(result);
-    if (result == null || minerHeader == null) {
+
+    if (headerHexAndTargetHex == null || minerHeader == null) {
       inspect('Failed to get block header');
       setState(() {
         mining = false;
       });
+      Future.delayed(const Duration(seconds: 0)).then((value) => startMiner());
       return;
     }
-    final result1 = minerHeader(result['headerHex']!.toNativeUtf8(),
-        result['targetHex']!.toNativeUtf8());
+    final nonceAndHeaderHex = minerHeader(
+            headerHexAndTargetHex['headerHex']!.toNativeUtf8(),
+            headerHexAndTargetHex['targetHex']!.toNativeUtf8())
+        .toDartString();
 
+    blockTemplate!.nonce = int.parse(nonceAndHeaderHex.split('-')[0]);
+    blockTemplate!.blockHash = nonceAndHeaderHex.split('-')[1];
+    final blockHeader = miner.buildBlock(blockTemplate!);
+    final resultSubmit = await rpcClient.submitBlock(blockHeader);
+    if (resultSubmit == null || resultSubmit['error'] != null) {
+      setState(() {
+        headerHexMined = resultSubmit.toString();
+        mining = false;
+      });
+      Future.delayed(const Duration(seconds: 0)).then((value) => startMiner());
+      return;
+    }
     setState(() {
-      headerHexMined = result1.toDartString();
+      headerHexMined = blockHeader;
       mining = false;
     });
+    Future.delayed(const Duration(seconds: 0)).then((value) => startMiner());
   }
 
   void calcularHashsPorSegundo() {
@@ -108,7 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final result1 = calculateHashPerSeconds!();
 
     setState(() {
-      headerHexMined = result1.toDartString();
+      headerHexMined = "${result1.toDartString().split('.')[0]} Hash/s";
       mining = false;
     });
   }
