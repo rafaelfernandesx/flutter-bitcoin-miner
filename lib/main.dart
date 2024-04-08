@@ -58,11 +58,8 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       mining = true;
     });
-    nativeAddLib ??= Platform.isAndroid
-        ? DynamicLibrary.open('libminer_lib.so')
-        : DynamicLibrary.process();
-    final minerHeader =
-        nativeAddLib?.lookupFunction<CppMiner, DartCppMiner>('minerHeader');
+    nativeAddLib ??= Platform.isAndroid ? DynamicLibrary.open('libminer_lib.so') : DynamicLibrary.process();
+    final minerHeader = nativeAddLib?.lookupFunction<CppMiner, DartCppMiner>('minerHeader');
 
     final rpcClient = BitcoinRpcClient('address', 'user', 'pass');
     final miner = BitcoinMiner(rpcClient);
@@ -78,8 +75,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     const coinbaseMessage = 'Mined by RafaelFernandes';
     const address = '1rafaeLAdmgQhS2i4BR1tRst666qyr9ut';
-    final headerHexAndTargetHex = miner.getBlockHeaderHex(
-        blockTemplate!, coinbaseMessage.codeUnits, address);
+    final headerHexAndTargetHex = miner.getBlockHeaderHex(blockTemplate!, coinbaseMessage.codeUnits, address);
 
     if (headerHexAndTargetHex == null || minerHeader == null) {
       inspect('Failed to get block header');
@@ -89,10 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
       Future.delayed(const Duration(seconds: 0)).then((value) => startMiner());
       return;
     }
-    final nonceAndHeaderHex = minerHeader(
-            headerHexAndTargetHex['headerHex']!.toNativeUtf8(),
-            headerHexAndTargetHex['targetHex']!.toNativeUtf8())
-        .toDartString();
+    final nonceAndHeaderHex = minerHeader(headerHexAndTargetHex['headerHex']!.toNativeUtf8(), headerHexAndTargetHex['targetHex']!.toNativeUtf8()).toDartString();
 
     blockTemplate!.nonce = int.parse(nonceAndHeaderHex.split('-')[0]);
     blockTemplate!.blockHash = nonceAndHeaderHex.split('-')[1];
@@ -117,12 +110,8 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       mining = !mining;
     });
-    nativeAddLib ??= Platform.isAndroid
-        ? DynamicLibrary.open('libminer_lib.so')
-        : DynamicLibrary.process();
-    final calculateHashPerSeconds =
-        nativeAddLib?.lookupFunction<CalculateHashNative, CalculateHashDart>(
-            'calculateHashPerSeconds');
+    nativeAddLib ??= Platform.isAndroid ? DynamicLibrary.open('libminer_lib.so') : DynamicLibrary.process();
+    final calculateHashPerSeconds = nativeAddLib?.lookupFunction<CalculateHashNative, CalculateHashDart>('calculateHashPerSeconds');
     final result1 = calculateHashPerSeconds!();
 
     setState(() {
@@ -164,14 +153,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             ElevatedButton(
               onPressed: startMiner,
-              child:
-                  mining ? const Text('Stop Miner') : const Text('Start Miner'),
+              child: mining ? const Text('Stop Miner') : const Text('Start Miner'),
             ),
             ElevatedButton(
               onPressed: calcularHashsPorSegundo,
-              child: mining
-                  ? const Text('Calculando')
-                  : const Text('Calcular hashs por segundo'),
+              child: mining ? const Text('Calculando') : const Text('Calcular hashs por segundo'),
             ),
             const SizedBox(height: 40),
           ],

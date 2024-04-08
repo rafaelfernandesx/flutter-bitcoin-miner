@@ -251,3 +251,4 @@ char * calculateHashPerSeconds()
 
     return result;
 }
+
